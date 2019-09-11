@@ -1,0 +1,99 @@
+#!/bin/bash
+
+#
+# Generate LDAP conf
+#
+OVPN_LDAP_CONFIG='/etc/openvpn/ldap.conf'
+OVPN_LDAP_URL=''
+OVPN_LDAP_BINDDN=''
+OVPN_LDAP_PASSWORD=''
+OVPN_LDAP_TIMEOUT=15
+OVPN_AUTH_BASEDN=''
+OVPN_AUTH_SEARCHFILTER='"(&(uid=%u))"'
+OVPN_AUTH_REQUIREGROUP='false'
+
+#set -x
+
+check_config_exists() {
+  if [ -f $OVPN_LDAP_CONFIG ]
+  then
+    echo "ldap config exists"
+    rm -f $OVPN_LDAP_CONFIG
+  fi
+}
+
+check_required_variables() {
+  for v in OVPN_LDAP_URL OVPN_LDAP_BINDDN OVPN_LDAP_PASSWORD OVPN_AUTH_BASEDN
+  do
+    if [[ -z "${!v}" ]]
+    then
+      echo "missing required arguments"
+      exit 4
+    fi
+  done
+}
+
+usage() {
+  echo "usage $0 "
+  echo "-u LDAP url. required"
+  echo "-b BindDN. required"
+  echo "-p LDAP password. required"
+  echo "-t LDAP timeout"
+  echo "-d Authorization BaseDn. required"
+  echo "-s Authorization SearchFilter"
+  echo "-g Authorization RequireGroup"
+}
+
+while getopts ":u:b:p:t:d:s:g:h" opt
+do
+  case $opt in 
+    u)
+      OVPN_LDAP_URL="$OPTARG"
+      ;;
+    b)
+      OVPN_LDAP_BINDDN="$OPTARG"
+      ;;
+    p)
+      OVPN_LDAP_PASSWORD="$OPTARG"
+      ;;
+    t)
+      OVPN_LDAP_TIMEOUT="$OPTARG"
+      ;;
+    d)
+      OVPN_AUTH_BASEDN="$OPTARG"
+      ;;
+    s)
+      OVPN_AUTH_SEARCHFILTER="$OPTARG"
+      ;;
+    g)
+      OVPN_AUTH_REQUREGROUP="$OPTARG"
+      ;;
+    h)
+      usage
+      exit 0
+      ;;
+  esac
+done 
+
+ldap_section() {
+  echo "<LDAP>
+URL ldap://$OVPN_LDAP_URL
+BindDN $OVPN_LDAP_BINDDN
+Password $OVPN_LDAP_PASSWORD
+Timeout $OVPN_LDAP_TIMEOUT
+</LDAP>" >> "$OVPN_LDAP_CONFIG" 
+
+}
+
+auth_section() {
+echo "<Authorization>
+BaseDN \"$OVPN_AUTH_BASEDN\"
+SearchFilter $OVPN_AUTH_SEARCHFILTER
+RequireGroup $OVPN_AUTH_REQUIREGROUP
+</Authorization>" >> "$OVPN_LDAP_CONFIG"
+}
+
+check_required_variables
+check_config_exists
+ldap_section
+auth_section
